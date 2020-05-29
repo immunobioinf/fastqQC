@@ -18,7 +18,7 @@ logfile=/home/Reports/QCPipelinelog.txt
 rundate=`date +"%Y%m%d"`
 
 ## Location of raw demultiplexed .fastq.gz files (lanes merged per sample)
-fastq=/home/TESTFastq
+fastq=/home/Fastq
 
 ## Runid
 runid="HHNGWDMXX"
@@ -71,7 +71,7 @@ do
 	--length 100 \
 	--output ${fastq}/${rundate}_PreProcessed/${rundate}_${runid}_${pair}_R -z no \
 	--method TREE \
-	--ifa human_rRNA_subset.fasta:0.4:30 \
+	--ifa human_rRNA.fasta:0.4:30 \
 	--adapter adapter_read1.fa:adapter_read2.fa:2:5 \
 	--trimQ ENDSFRAC -q 30 -p 10 \
 	--trimN ENDS \
