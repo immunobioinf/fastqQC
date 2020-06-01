@@ -31,6 +31,8 @@ report1=/home/Reports/FASTQCReports_raw
 mkdir -p /home/Reports/FASTQCReports_preprocessed
 report2=/home/Reports/FASTQCReports_preprocessed
 
+start_time=`date -u +%s`
+
 #############################
 ## Generate FastQC reports ##
 #############################
@@ -71,9 +73,9 @@ do
 	--length 100 \
 	--output ${fastq}/${rundate}_PreProcessed/${rundate}_${runid}_${pair}_R -z no \
 	--method TREE \
-	--ifa human_rRNA.fasta:0.4:30 \
+	--ifa human_rRNA_joined.fasta:0.4:30 \
 	--adapter adapter_read1.fa:adapter_read2.fa:2:5 \
-	--trimQ ENDSFRAC -q 30 -p 10 \
+	--trimQ ENDSFRAC -q 30 -p 15 \
 	--trimN ENDS \
 	--minL 30 \
 	2>&1 | tee ${fastq}/${rundate}_PreProcessed/${rundate}_${runid}_${pair}_trimFilterPElog.txt
@@ -92,3 +94,17 @@ do
         fastqc ${file} --outdir=${report2}/
 done
 
+######################################
+## Generate SReport for all samples ##
+######################################
+
+echo "STEP 4: Generating final sample report for all pre-processed samples" | tee -a ${logfile}
+
+Sreport -i ${fastq}/${rundate}_PreProcessed \
+-t P \
+-o ${fastq}/${rundate}_PreProcessed/${rundate}_SReport
+
+end_time=`date -u +%s`
+elapsed=$((end_time-start_time))
+
+echo "Total of $((elapsed/3600)) hours, $(((elapsed/60)%60)) mins to complete"
