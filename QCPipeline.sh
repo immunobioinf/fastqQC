@@ -13,96 +13,90 @@
 ####################################################################################
 ##================================================================================##
 
-## Logfile
-logfile=/home/Reports/QCPipelinelog.txt
-rundate=`date +"%Y%m%d"`
+if [[ ! $1 =~ .(fastq.gz|fastq|fq.gz|fq)$ ]] || [[ ! $2 =~ .(fastq.gz|fastq|fq.gz|fq)$ ]]; then
+        echo "Please provide sample .fastq/.fastq.gz files for reads 1 and 2"
+        exit 1
+else
+        echo "Provided files: $1 and $2"
+fi
 
-## Location of raw demultiplexed .fastq.gz files (lanes merged per sample)
-fastq=/home/Fastq
+if [[ ! $3 =~ ^D7[0-9]{2}-D5[0-9]{2}$ ]]; then
+	echo "Please provide index pair in format D7XX-D5XX"
+	exit 1
+else
+	echo "Index pair: $3"
+fi
+
+rundate=`date +"%Y%m%d"`
+start_time=`date -u +%s`
 
 ## Runid
 runid="HHNGWDMXX"
+
+## Directory for preprocessed reads
+fastq=/home/Fastq
 
 ## Directory for FastQC reports
 ## Raw reads:
 mkdir -p /home/Reports/FASTQCReports_raw
 report1=/home/Reports/FASTQCReports_raw
-## Processed reads:
+## Pre-processed reads:
 mkdir -p /home/Reports/FASTQCReports_preprocessed
 report2=/home/Reports/FASTQCReports_preprocessed
 
-start_time=`date -u +%s`
+sampleR1=$1
+sampleR2=$2
+indexpair=$3
 
 #############################
 ## Generate FastQC reports ##
 #############################
 
-echo "STEP 1:Generating FastQC reports for raw reads" | tee -a ${logfile}
+echo "STEP 1:Generating FastQC reports for raw reads"
 
-for file in `ls ${fastq}/*R[1,2].fastq.gz`
-do
-	echo "Processing ${file}" | tee -a ${logfile}
-	fastqc ${file} --outdir=${report1}/
-done
+# READ1
+fastqc ${sampleR1} --outdir=${report1}
+# READ 2
+fastqc ${sampleR2} --outdir=${report1}
 
 ########################################
 ## Trim reads and filter contaminants ##
 ########################################
 
-echo "STEP 2: Trim reads and filter contaminants with trimFilterPE (FastqPuri)" | tee -a ${logfile}
+echo "STEP 2: Trim reads and filter contaminants with trimFilterPE (FastqPuri)"
 
 mkdir -p ${fastq}/${rundate}_PreProcessed
 echo "Storing processed files at ${fastq}/${rundate}_PreProcessed"
-
-cat IndexPairs.txt | while read line
-do
-	i7=`awk '{print $1}' FS=" " <<< ${line}`
-	i5=`awk '{print $2}' FS=" " <<< ${line}`
-	pair="${i7}-${i5}"
 	
-	## N.B The first three nucleotides on R2 readss have been previously converted to 'N' to allow for
-	## trimming of Pico v2 SMART adapters using --trimN below
-	sampleR1=`ls ${fastq}/*.fastq.gz | grep "${pair}_R1.fastq.gz"`
-	sampleR2=`ls ${fastq}/NNNR2/*.fastq.gz | grep "${pair}_R2_NNN.fastq.gz"`
+## N.B The first three nucleotides on R2 reads have been previously converted to 'N' to allow for
+## trimming of Pico v2 SMART adapters using --trimN below
 
-	printf "Processing\n${sampleR1} and\n${sampleR2}\n" | tee -a ${logfile}
+printf "Processing\n${sampleR1} and\n${sampleR2}\n"
 
-	### Run trimFilterPE
+### Run trimFilterPE
 
-	trimFilterPE --ifq ${sampleR1}:${sampleR2} \
-	--length 100 \
-	--output ${fastq}/${rundate}_PreProcessed/${rundate}_${runid}_${pair}_R -z no \
-	--method TREE \
-	--ifa human_rRNA_joined.fasta:0.4:30 \
-	--adapter adapter_read1.fa:adapter_read2.fa:2:5 \
-	--trimQ ENDSFRAC -q 30 -p 15 \
-	--trimN ENDS \
-	--minL 30 \
-	2>&1 | tee ${fastq}/${rundate}_PreProcessed/${rundate}_${runid}_${pair}_trimFilterPElog.txt
-
-done
+trimFilterPE --ifq ${sampleR1}:${sampleR2} \
+--length 100 \
+--output ${fastq}/${rundate}_PreProcessed/${rundate}_${runid}_${indexpair}_R -z no \
+--method TREE \
+--ifa human_rRNA_joined.fasta:0.4:30 \
+--adapter adapter_read1.fa:adapter_read2.fa:2:5 \
+--trimQ ENDSFRAC -q 30 -p 15 \
+--trimN ENDS \
+--minL 30 \
+2>&1 | tee ${fastq}/${rundate}_PreProcessed/${rundate}_${runid}_${indexpair}_trimFilterPElog.txt
 
 #################################################
 ## Generate FastQC reports from processed data ##
 #################################################
 
-echo "STEP 3: Generating FastQC reports for trimmed and filtered reads" | tee -a ${logfile}
+echo "STEP 3: Generating FastQC reports for trimmed and filtered reads"
 
 for file in `ls ${fastq}/${rundate}_PreProcessed/*_good.fq`
 do
-        echo "Processing ${file}" | tee -a ${logfile}
+        echo "Processing ${file}"
         fastqc ${file} --outdir=${report2}/
 done
-
-######################################
-## Generate SReport for all samples ##
-######################################
-
-echo "STEP 4: Generating final sample report for all pre-processed samples" | tee -a ${logfile}
-
-Sreport -i ${fastq}/${rundate}_PreProcessed \
--t P \
--o ${fastq}/${rundate}_PreProcessed/${rundate}_SReport
 
 end_time=`date -u +%s`
 elapsed=$((end_time-start_time))
