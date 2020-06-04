@@ -80,11 +80,14 @@ trimFilterPE --ifq ${sampleR1}:${sampleR2} \
 --output ${fastq}/${rundate}_PreProcessed/${rundate}_${runid}_${indexpair}_R -z no \
 --method TREE \
 --ifa human_rRNA_joined.fasta:0.4:30 \
---adapter adapter_read1.fa:adapter_read2.fa:2:5 \
 --trimQ ENDSFRAC -q 30 -p 15 \
 --trimN ENDS \
 --minL 30 \
 2>&1 | tee ${fastq}/${rundate}_PreProcessed/${rundate}_${runid}_${indexpair}_trimFilterPElog.txt
+
+# Removed
+# --adapter adapter_read1.fa:adapter_read2.fa:2:5 \
+# No adapter trimming
 
 #################################################
 ## Generate FastQC reports from processed data ##
@@ -92,7 +95,7 @@ trimFilterPE --ifq ${sampleR1}:${sampleR2} \
 
 echo "STEP 3: Generating FastQC reports for trimmed and filtered reads"
 
-for file in `ls ${fastq}/${rundate}_PreProcessed/*_good.fq`
+for file in `ls ${fastq}/${rundate}_PreProcessed/*{indexpair}_R[1,2]_good.fq`
 do
         echo "Processing ${file}"
         fastqc ${file} --outdir=${report2}/
